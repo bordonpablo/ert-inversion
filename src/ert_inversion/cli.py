@@ -72,6 +72,23 @@ def main(config_path: str | None, data_path: str | None) -> None:
     logger.info("Configuración: %s", cfg_file)
     logger.info("Carpeta de salida: %s", output_dir.resolve())
 
+    # --- Parámetros cargados ---
+    logger.info("=" * 60)
+    logger.info("  Parámetros de configuración")
+    logger.info("=" * 60)
+    logger.info("  [data]")
+    logger.info("    path             : %s", config["data"]["path"])
+    logger.info("  [error]")
+    logger.info("    rel_error        : %s", config["error"]["rel_error"])
+    logger.info("    abs_u_error      : %s", config["error"]["abs_u_error"])
+    logger.info("  [mesh]")
+    logger.info("    para_dx          : %s", config["mesh"]["para_dx"])
+    logger.info("    para_max_cell_size: %s", config["mesh"]["para_max_cell_size"])
+    logger.info("    para_depth       : %s", config["mesh"]["para_depth"])
+    logger.info("    quality          : %s", config["mesh"]["quality"])
+    logger.info("  [inversion]")
+    logger.info("    lambda           : %s", config["inversion"]["lambda"])
+
     # --- Inversión ---
     from .inversion import Inversion  # import tardío para no cargar pygimli hasta aquí
 
