@@ -1,0 +1,27 @@
+# Configuración base para la inversión ERT
+# Todos los valores pueden sobreescribirse con un archivo --config personalizado.
+
+data:
+  # Path al archivo de datos de entrada (.dat formato RES2DINV-like)
+  # Relativo al directorio de trabajo donde se ejecuta el comando
+  path: doc/ejemplo.dat
+
+error:
+  # Error relativo (fracción): 0.03 = 3%
+  rel_error: 0.03
+  # Umbral absoluto de voltaje para datos pequeños [V]
+  abs_u_error: 5.0e-5
+
+mesh:
+  # Densidad horizontal relativa de celdas paramétricas
+  para_dx: 0.3
+  # Tamaño máximo de celda [m²]
+  para_max_cell_size: 10
+  # Profundidad máxima de investigación [m] (regla: L/4 a L/3)
+  para_depth: 40
+  # Calidad de la triangulación — ángulo mínimo en grados (33.6° es óptimo)
+  quality: 33.6
+
+inversion:
+  # Factor de regularización (mayor → modelo más suave)
+  lambda: 20

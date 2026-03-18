@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ert-inversion"
+version = "0.1.0"
+description = "ERT inversion tool using pyGIMLi"
+requires-python = ">=3.10"
+# pyGIMLi debe instalarse via conda antes de instalar este paquete
+# conda install -c gimli pygimli
+dependencies = [
+    "click>=8.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+ert-inversion = "ert_inversion.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
