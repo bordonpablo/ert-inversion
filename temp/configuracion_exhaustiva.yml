@@ -1,0 +1,339 @@
+# =============================================================================
+# Configuración exhaustiva para inversión ERT — pyGIMLi
+# Todos los parámetros documentados con sus valores por defecto y fuente.
+# Los parámetros marcados con [EN USO] ya están implementados en Inversion.py.
+# Los marcados con [NUEVO] requieren cambios en el código para activarse.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# DATOS DE ENTRADA
+# -----------------------------------------------------------------------------
+data:
+  path: doc/ejemplo.dat            # [EN USO] Ruta al .dat (RES2DINV-like)
+
+  # --- Filtrado previo a la inversión [NUEVO] ---
+  filter_k_negative: true          # Remover mediciones con factor geométrico k < 0
+                                   # Fuente: DataContainer.markInvalid(data["k"] < 0)
+  filter_rhoa_min: 0.1             # [Ohm·m] Remover rhoa por debajo de este umbral
+                                   # Evita problemas con valores no físicos
+  remove_invalid: true             # Llamar a data.removeInvalid() después de filtrar
+                                   # Fuente: DataContainer.removeInvalid()
+
+
+# -----------------------------------------------------------------------------
+# ESTIMACIÓN DE ERRORES
+# -----------------------------------------------------------------------------
+error:
+  # Error relativo: fracción de la medición (0.03 = 3%)
+  # Fuente: ert.estimateError(relativeError=...)
+  rel_error: 0.03                  # [EN USO] Default pyGIMLi: 0.03
+
+  # Error absoluto de potencial en Voltios
+  # Fuente: ert.estimateError(absoluteUError=...)
+  # Necesita el campo 'u' en el DataContainer, o lo reconstruye desde rhoa, k e i
+  abs_u_error: 5.0e-5              # [EN USO] Default pyGIMLi: 0.001 V
+
+  # Error absoluto directo en Ohm·m (alternativa a abs_u_error)
+  # Fuente: ert.estimateError(absoluteError=...)
+  # Usar UNO: abs_u_error (más físico) o abs_error (más simple)
+  abs_error: 0.0                   # [NUEVO] Default: 0.0 (desactivado)
+
+  # Corriente de inyección asumida para reconstruir potencial absoluto [A]
+  # Solo relevante cuando se usa abs_u_error sin campo 'i' en los datos
+  # Fuente: ert.estimateError(absoluteCurrent=...)
+  absolute_current: 0.1            # [NUEVO] Default pyGIMLi: 0.1 A
+
+
+# -----------------------------------------------------------------------------
+# OPERADOR FORWARD (ERTManager.__init__)
+# -----------------------------------------------------------------------------
+forward:
+  # Usar eliminación de singularidad (singularity removal)
+  # Mejora la precisión numérica cerca de los electrodos
+  # Para topografía plana: potencial primario analítico
+  # Para topografía: cálculo numérico en malla p2 refinada
+  # Fuente: ERTManager(sr=True)
+  singularity_removal: true        # [NUEVO] Default: True — recomendado siempre activo
+
+  # Usar operador BERT (C++) en vez de la implementación de referencia Python
+  # BERT es más rápido; la impl. de referencia es más transparente/debuggeable
+  # Fuente: ERTManager(useBert=True)
+  use_bert: true                   # [NUEVO] Default: True
+
+  # Refinamiento p2 de la malla para el cálculo del potencial primario
+  # Solo relevante cuando singularity_removal=True con topografía
+  # Fuente: mgr.fop._refineP2 / invert(refineP2=False)
+  refine_p2: false                 # [NUEVO] Default: False
+
+
+# -----------------------------------------------------------------------------
+# MALLA DE INVERSIÓN (createParaMeshPLC / createInversionMesh)
+# -----------------------------------------------------------------------------
+mesh:
+  # --- Dominio paramétrico ---
+
+  # Densidad horizontal relativa de celdas en el dominio paramétrico
+  # 1.0 = una celda por espaciado de electrodo; valores < 1 = más celdas
+  # Fuente: createParaMeshPLC(paraDX=...)
+  para_dx: 0.3                     # [EN USO] Default: 1.0
+
+  # Tamaño máximo de celda en el dominio paramétrico [m²]
+  # Controla la resolución máxima del modelo — no confundir con calidad
+  # Fuente: createParaMeshPLC(paraMaxCellSize=...)
+  para_max_cell_size: 10           # [EN USO] Default: 0.0 (sin límite)
+
+  # Profundidad máxima del dominio paramétrico [m]
+  # Regla práctica: L/4 a L/3, donde L = longitud del perfil
+  # Fuente: createParaMeshPLC(paraDepth=...)
+  para_depth: 40                   # [EN USO] Default: 0.4 * rango_x
+
+  # Calidad de la triangulación (ángulo mínimo en grados)
+  # 33.6° es el óptimo de Triangle; valores > 34 pueden causar inestabilidad
+  # Fuente: createMesh(quality=...)
+  quality: 33.6                    # [EN USO] Default: 33.0
+
+  # --- Dominio de contorno (boundary) ---
+
+  # Tamaño máximo de celda en la región de fondo/contorno [m²]
+  # Controla la malla fuera del dominio paramétrico donde viajan las corrientes
+  # Valores grandes (50–500) son normales acá; no necesita alta resolución
+  # Fuente: createParaMeshPLC(boundaryMaxCellSize=...)
+  boundary_max_cell_size: 0        # [NUEVO] Default: 0 (sin límite)
+                                   # Recomendado: 50–500 para perfiles típicos
+
+  # Extensión lateral del contorno, en múltiplos del ancho del perfil
+  # Valores < 0 fuerzan el contorno a 4× el ancho del dominio paramétrico
+  # Fuente: createParaMeshPLC(boundary=...)
+  boundary: -1                     # [NUEVO] Default: -1 (→ 4× automático)
+
+  # Offset del dominio paramétrico hacia adentro del contorno,
+  # en múltiplos del espaciado de electrodos
+  # Fuente: createParaMeshPLC(paraBoundary=...)
+  para_boundary: 2                 # [NUEVO] Default: 2
+
+  # --- Suavizado post-triangulación ---
+
+  # Algoritmo y número de iteraciones de suavizado de la malla
+  # [algoritmo, iteraciones]: 0=sin suavizado, 1=centros de nodo, 2=ponderado
+  # Fuente: createMesh(smooth=[2, 10])
+  smooth_algo: 2                   # [NUEVO] Default: 2 (weighted node center)
+  smooth_iter: 10                  # [NUEVO] Default: 10
+
+  # Nodos adicionales entre electrodos (mejora la discretización superficial)
+  # Fuente: createParaMeshPLC(addNodes=...)
+  add_nodes: 1                     # [NUEVO] Default: 1
+
+  # Forma trapezoidal del dominio en lugar de rectangular
+  # Valor = fracción de la longitud total que se mete hacia adentro en profundidad
+  # 0 = rectangular (default); 0.1–0.3 = forma trapezoidal leve
+  # Fuente: createParaMeshPLC(trapRatio=...)
+  trap_ratio: 0                    # [NUEVO] Default: 0 (rectangular)
+
+
+# -----------------------------------------------------------------------------
+# INVERSIÓN (ERTManager.invert / pg.Inversion)
+# -----------------------------------------------------------------------------
+inversion:
+  # Factor de regularización λ — mayor → modelo más suave, menos ajuste a datos
+  # Fuente: mgr.invert(lam=...)
+  lambda: 20                       # [EN USO] Default: 20
+
+  # Número máximo de iteraciones Gauss-Newton
+  # Fuente: inv.setMaxIter(...) / invert internamente
+  max_iter: 20                     # [NUEVO] Default: 20
+
+  # Modelo de inicio [Ohm·m]
+  # None = mediana de rhoa (default pyGIMLi)
+  # Un valor fijo evita que el punto de partida dependa de los datos
+  # Fuente: mgr.invert(startModel=...)
+  start_model: null                # [NUEVO] Default: null (→ mediana rhoa)
+
+  # Usar el modelo de inicio como modelo de referencia (regularización damping)
+  # Si True, la regularización penaliza desviaciones del start_model en lugar
+  # de penalizar la rugosidad del modelo
+  # Fuente: inv.setReferenceModel(startModel) / startModelIsReference
+  start_model_is_reference: false  # [NUEVO] Default: False
+
+  # --- Tipo de restricción (cType) ---
+  # 0 = damping (modelo cercano al start_model)
+  # 1 = primer orden (suavizado — interfaces difusas) [DEFAULT]
+  # 2 = segundo orden (suavizado cuadrático — modelos aún más suaves)
+  # 10 = geoestadístico (requiere correlation_lengths)
+  # Fuente: mgr.invert(cType=...) → fop.setRegionProperties('*', cType=...)
+  c_type: 1                        # [NUEVO] Default: 1
+
+  # Peso relativo del suavizado vertical respecto al horizontal
+  # < 1 → más suave en vertical (favorece capas planas)
+  # 1.0 = isótropo; 0.2–0.5 = geológicamente realista para estratigrafía plana
+  # Fuente: mgr.invert(zWeight=...) → fop.setRegionProperties('*', zWeight=...)
+  z_weight: 0.3                    # [NUEVO] Default: 0.3 (según pyGIMLi source)
+
+  # Límites físicos de resistividad [min, max] en Ohm·m
+  # Activan una transformación logarítmica con barrera (TransLogLU)
+  # Fundamental para evitar valores no físicos en el modelo
+  # Fuente: mgr.invert(limits=...) → fop.setRegionProperties('*', limits=...)
+  limits:                          # [NUEVO] Default: null (sin límites)
+    - null                         # límite inferior — ej.: 0.1
+    - null                         # límite superior — ej.: 100000
+
+  # Transformación del modelo
+  # "log" = logarítmica (default ERT — asegura valores positivos)
+  # "cot" = cotangente (para parámetros acotados)
+  # "lin" = lineal (sin transformación)
+  # Fuente: fop.setRegionProperties('*', trans=...)
+  model_trans: "log"               # [NUEVO] Default: "log"
+
+  # --- Robustez ---
+
+  # Reweighting L1 de los datos (más robusto ante outliers)
+  # Downpesa datos con residuos grandes; útil si hay ruido EM o electrodos malos
+  # Fuente: inv.setRobustData(True) / mgr.invert(robustData=...)
+  robust_data: false               # [NUEVO] Default: False
+
+  # Suavizado L1 en el modelo (modelo por bloques — interfaces más nítidas)
+  # Útil cuando se esperan contactos geológicos abruptos
+  # Fuente: inv.setBlockyModel(True) / mgr.invert(blockyModel=...)
+  blocky_model: false              # [NUEVO] Default: False
+
+  # Recalcular el Jacobiano en cada iteración
+  # False = linearización fija (más rápido, menos preciso)
+  # True = Gauss-Newton completo (más lento, más preciso)
+  # Fuente: inv.setRecalcJacobian(True)
+  recalc_jacobian: true            # [NUEVO] Default: True
+
+  # --- Regularización geoestadística (alternativa a cType 0/1/2) ---
+  # Solo activa si c_type: 10 o si se pasan directamente
+  # Define la correlación espacial del modelo esperado
+  # Fuente: mgr.invert(correlationLengths=[Ix, Iz]) o inv.setRegularization(...)
+
+  geostatistical:
+    enabled: false                 # [NUEVO] Activar regularización geoestadística
+    # Longitudes de correlación [x, z] en metros
+    # Ix = correlación horizontal, Iz = correlación vertical
+    # Iz << Ix → estructuras laminares (capas)
+    correlation_lengths:           # [NUEVO] Default: null
+      - null                       # Ix — ej.: 40 m
+      - null                       # Iz — ej.: 4 m
+    # Ángulo de inclinación entre eje x y primera dirección de correlación [°]
+    # Útil para estructuras geológicas inclinadas
+    dip: 0                         # [NUEVO] Default: 0
+    # Ángulo de rumbo entre eje y y segunda dirección de correlación [°]
+    # Solo relevante en inversiones 3D
+    strike: 0                      # [NUEVO] Default: 0
+
+
+# -----------------------------------------------------------------------------
+# FACTORES GEOMÉTRICOS
+# -----------------------------------------------------------------------------
+geometric_factors:
+  # Calcular factores k numéricamente (requiere una malla de alta resolución)
+  # True = k numérico (con topografía) | False = k analítico (semiesp. plano)
+  # Fuente: ert.createGeometricFactors(data, numerical=True)
+  numerical: false                 # [NUEVO] Default: False (analítico)
+
+  # Dimensión del cálculo (2D o 3D)
+  # Fuente: ert.createGeometricFactors(data, dim=...)
+  dim: 3                           # [NUEVO] Default: 3
+
+  # Usar elementos h2 para mayor precisión en el cálculo numérico
+  h2: true                         # [NUEVO] Default: True
+  # Usar elementos p2 para mayor precisión en el cálculo numérico
+  p2: true                         # [NUEVO] Default: True
+
+
+# -----------------------------------------------------------------------------
+# IP (Polarización Inducida) — requiere ERTIPManager en lugar de ERTManager
+# -----------------------------------------------------------------------------
+ip:
+  # Activar inversión de chargeability (solo si has_ip=1 en el .dat)
+  # Requiere reemplazar ERTManager por ERTIPManager en el código
+  invert: false                    # [NUEVO] Default: False
+
+  # Dominio temporal (TD) o frecuencial (FD)
+  # TD: inversión de chargeability en mV/V (dominio tiempo)
+  # FD: inversión de amplitud y fase (dominio frecuencia)
+  # Fuente: ERTIPManager(fd=False)
+  frequency_domain: false          # [NUEVO] Default: False (TD)
+
+  # Campo de datos IP en el DataContainer a usar para la inversión
+  # Típicamente 'ip' (chargeability) o 'phia' (fase)
+  # Fuente: ERTIPManager.invertTDIP(ipdata='ip')
+  ip_data_field: "ip"             # [NUEVO] Default: "ip"
+
+  # Factor de regularización para la inversión IP
+  # Suele ser igual o menor que lambda ERT
+  # Fuente: parámetro lam en invertTDIP/invertFDIP
+  lambda: 10                       # [NUEVO] Sugerido: 5–20
+
+  # Número máximo de iteraciones para la inversión IP
+  max_iter: 10                     # [NUEVO] Default: 10
+
+
+# -----------------------------------------------------------------------------
+# VISUALIZACIÓN Y EXPORTACIÓN
+# -----------------------------------------------------------------------------
+plot:
+  # --- Pseudosección ---
+  show_pseudosection: true         # [EN USO]
+
+  # --- Modelo de resistividad ---
+  c_min: 10                        # [EN USO - hardcodeado] Límite inferior de color [Ohm·m]
+  c_max: 5000                      # [EN USO - hardcodeado] Límite superior de color [Ohm·m]
+  c_map: "Spectral_r"              # [EN USO - hardcodeado] Paleta de colores
+  log_scale: true                  # [EN USO - hardcodeado] Escala logarítmica
+
+  # --- Cobertura / sensibilidad ---
+  # La cobertura indica cuán bien resueltas están las celdas del modelo
+  # Es esencial para enmascarar zonas poco confiables en la interpretación
+  show_coverage: true              # [NUEVO] Superponer mapa de sensibilidad
+  coverage_threshold: 0.3         # [NUEVO] Enmascarar celdas con cobertura < valor
+                                   # Fuente: mgr.coverage() / mgr.coverageNorm()
+
+  # Mostrar electrodos en las figuras del modelo
+  show_electrodes: true            # [NUEVO] Default: True en showResult
+
+  # DPI de las figuras exportadas
+  dpi: 150                         # [EN USO - hardcodeado]
+
+  # Orientación de la barra de color
+  # "horizontal" | "vertical"
+  colorbar_orientation: "horizontal" # [NUEVO] Default: "horizontal"
+
+  # Guardar resultados en formato VTK (para visualización en ParaView)
+  # Fuente: mgr.saveResult(folder=...)
+  save_vtk: false                  # [NUEVO] Exporta malla + modelo + cobertura
+
+  # Mostrar también la desadaptación de datos (misfit)
+  show_misfit: false               # [NUEVO] mgr.showMisfit(errorWeighted=True)
+  misfit_error_weighted: false     # [NUEVO] Misfit ponderado por error
+
+
+# -----------------------------------------------------------------------------
+# TOPOGRAFÍA
+# -----------------------------------------------------------------------------
+topography:
+  # Incorporar topografía real en la malla
+  # Si True, las coordenadas z de los electrodos se usan directamente
+  # y los factores k deben calcularse numéricamente (geometric_factors.numerical=True)
+  enabled: false                   # [NUEVO] Default: False (semiesp. plano)
+
+  # Archivo externo con coordenadas topográficas adicionales (no solo electrodos)
+  # Formato: x z por línea
+  topo_file: null                  # [NUEVO] Ruta al archivo de topografía
+
+
+# -----------------------------------------------------------------------------
+# NOTAS DE USO
+# -----------------------------------------------------------------------------
+# Parámetros de invert() que se pasan directamente a ERTManager.invert():
+#   lam, startModel, zWeight, limits, cType, correlationLengths, dip, strike,
+#   robustData, blockyModel, recalcJacobian, refineP2, verbose
+#   + parámetros de malla: paraDX, paraMaxCellSize, paraDepth, quality,
+#     boundaryMaxCellSize, boundary, paraBoundary, smooth, addNodes
+#
+# Flujo recomendado de implementación:
+#   1. Leer TODOS los parámetros desde config en _run_inversion()
+#   2. Construir dict de kwargs y pasarlo a mgr.invert(**kwargs)
+#   3. Para geoestadística: usar mgr.inv.setRegularization() antes de invert()
+#   4. Para IP: reemplazar ERTManager por ERTIPManager si ip.invert=True
+#   5. Para cobertura: llamar mgr.coverage() después de invert() y aplicar máscara
